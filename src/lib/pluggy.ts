@@ -13,6 +13,7 @@ import {
   applyCategorizationRules,
   buildTransactionFingerprint,
   detectTransactionKind,
+  normalizeInstitutionName,
   parseInstallmentInfo,
 } from "@/lib/finance-engine";
 
@@ -150,14 +151,14 @@ function inferInstitutionName(
 ): string {
   const base = connectorName?.trim() || "Instituição Conectada";
   if (base.toLowerCase() !== "meupluggy" && base.toLowerCase() !== "meu pluggy") {
-    return base;
+    return normalizeInstitutionName(base);
   }
   // Quando vem via MeuPluggy, extrai o nome real do banco a partir da conta bancária
   const bankAcc = pluggyAccounts.find((a) => a.type === "BANK" && a.name?.trim());
-  if (bankAcc?.name?.trim()) return bankAcc.name.trim();
+  if (bankAcc?.name?.trim()) return normalizeInstitutionName(bankAcc.name.trim());
   const anyAcc = pluggyAccounts.find((a) => (a.marketingName || a.name)?.trim());
-  if (anyAcc) return (anyAcc.marketingName || anyAcc.name || base).trim();
-  return base;
+  if (anyAcc) return normalizeInstitutionName((anyAcc.marketingName || anyAcc.name || base).trim());
+  return normalizeInstitutionName(base);
 }
 
 /**
@@ -234,9 +235,13 @@ export async function syncPluggyItem(
 
     const rawAccName = pAcc.name?.trim();
     const displayAccountName =
-      accountType === "CREDIT_CARD" && (!rawAccName || rawAccName.toUpperCase() === "BANDEIRADO")
-        ? `Cartão ${institutionName}`
-        : rawAccName || `${institutionName} ${accountType === "CREDIT_CARD" ? "Cartão" : "Conta"}`;
+      accountType === "CREDIT_CARD"
+        ? !rawAccName || rawAccName.toUpperCase() === "BANDEIRADO"
+          ? `Cartão ${institutionName}`
+          : rawAccName
+        : !rawAccName || normalizeInstitutionName(rawAccName) === institutionName
+          ? `Conta ${institutionName}`
+          : rawAccName;
 
     const [localAccount] = await db
       .insert(accounts)
@@ -423,6 +428,7 @@ export async function syncPluggyItem(
   }
 
   const transfersPaired = await pairInternalTransfers();
+  await pairCreditCardPayments();
 
   return {
     pluggyItemId,
@@ -435,8 +441,9 @@ export async function syncPluggyItem(
 }
 
 /**
- * Pareia automaticamente transferências entre contas próprias do usuário
- * (mesmo valor absoluto em contas diferentes em janela de ±2 dias, sendo uma entrada e outra saída).
+ * Pareia automaticamente transferências entre contas bancárias próprias do usuário
+ * (mesmo valor absoluto em contas bancárias diferentes em janela de ±2 dias, sendo uma entrada e outra saída).
+ * Nunca inclui contas CREDIT_CARD para evitar marcar compras de cartão como transferência.
  */
 export async function pairInternalTransfers(): Promise<number> {
   const db = getDb();
@@ -444,13 +451,24 @@ export async function pairInternalTransfers(): Promise<number> {
   cutoff.setDate(cutoff.getDate() - 90);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
 
+  const allAccounts = await db
+    .select({ id: accounts.id, type: accounts.type })
+    .from(accounts);
+  const nonCardAccountIds = new Set(
+    allAccounts.filter((a) => a.type !== "CREDIT_CARD").map((a) => a.id)
+  );
+
   const recent = await db
     .select()
     .from(transactions)
     .where(and(gte(transactions.occurredAt, cutoffStr)));
 
-  const debits = recent.filter((t) => t.kind === "EXPENSE" && !t.transferPairId);
-  const credits = recent.filter((t) => t.kind === "INCOME" && !t.transferPairId);
+  const debits = recent.filter(
+    (t) => t.kind === "EXPENSE" && !t.transferPairId && nonCardAccountIds.has(t.accountId)
+  );
+  const credits = recent.filter(
+    (t) => t.kind === "INCOME" && !t.transferPairId && nonCardAccountIds.has(t.accountId)
+  );
 
   const usedCredits = new Set<string>();
   let paired = 0;
@@ -478,12 +496,106 @@ export async function pairInternalTransfers(): Promise<number> {
       usedCredits.add(match.id);
       await db
         .update(transactions)
-        .set({ kind: "TRANSFER", transferPairId: match.id, updatedAt: new Date() })
+        .set({ kind: "TRANSFER", categoryId: null, transferPairId: match.id, updatedAt: new Date() })
         .where(eq(transactions.id, debit.id));
       await db
         .update(transactions)
-        .set({ kind: "TRANSFER", transferPairId: debit.id, updatedAt: new Date() })
+        .set({ kind: "TRANSFER", categoryId: null, transferPairId: debit.id, updatedAt: new Date() })
         .where(eq(transactions.id, match.id));
+      paired++;
+    }
+  }
+
+  return paired;
+}
+
+/**
+ * Pareia débitos em conta corrente (ex: "C6 BANK") que correspondem a um pagamento de fatura (CC_PAYMENT)
+ * já registrado no cartão de crédito no mesmo valor (±2 dias), eliminando dupla contagem de despesas.
+ */
+export async function pairCreditCardPayments(daysBack = 120): Promise<number> {
+  const db = getDb();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - daysBack);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+
+  const allAccounts = await db
+    .select({ id: accounts.id, type: accounts.type, institutionName: accounts.institutionName })
+    .from(accounts);
+  const accountMap = new Map(allAccounts.map((a) => [a.id, a]));
+
+  const recent = await db
+    .select()
+    .from(transactions)
+    .where(and(gte(transactions.occurredAt, cutoffStr)));
+
+  const ccPayments = recent.filter(
+    (t) =>
+      t.kind === "CC_PAYMENT" &&
+      !t.transferPairId &&
+      accountMap.get(t.accountId)?.type === "CREDIT_CARD"
+  );
+  const bankDebits = recent.filter(
+    (t) =>
+      t.kind === "EXPENSE" &&
+      !t.transferPairId &&
+      accountMap.get(t.accountId)?.type !== "CREDIT_CARD"
+  );
+
+  const usedDebits = new Set<string>();
+  let paired = 0;
+
+  for (const ccPay of ccPayments) {
+    const ccAcc = accountMap.get(ccPay.accountId);
+    const ccDate = new Date(`${ccPay.occurredAt}T12:00:00Z`).getTime();
+
+    const match = bankDebits.find((d) => {
+      if (usedDebits.has(d.id)) return false;
+      if (d.amountCents !== ccPay.amountCents) return false;
+      const dDate = new Date(`${d.occurredAt}T12:00:00Z`).getTime();
+      const dayDiff = Math.abs(Math.round((ccDate - dDate) / (1000 * 60 * 60 * 24)));
+      if (dayDiff > 2) return false;
+
+      const dAcc = accountMap.get(d.accountId);
+      const sameInstitution =
+        ccAcc &&
+        dAcc &&
+        normalizeInstitutionName(ccAcc.institutionName) ===
+          normalizeInstitutionName(dAcc.institutionName);
+
+      const descUpper = d.rawDescription
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toUpperCase();
+      const looksLikeBillPay =
+        sameInstitution ||
+        descUpper.includes("FATURA") ||
+        descUpper.includes("CARTAO") ||
+        descUpper.includes("C6 BANK") ||
+        descUpper.includes("NUBANK") ||
+        descUpper.includes("INTER") ||
+        descUpper.includes("BOLETO") ||
+        descUpper.includes("PAGAMENTO");
+
+      return looksLikeBillPay;
+    });
+
+    if (match) {
+      usedDebits.add(match.id);
+      await db
+        .update(transactions)
+        .set({
+          kind: "CC_PAYMENT",
+          categoryId: null,
+          transferPairId: ccPay.id,
+          reviewed: true,
+          updatedAt: new Date(),
+        })
+        .where(eq(transactions.id, match.id));
+      await db
+        .update(transactions)
+        .set({ transferPairId: match.id, updatedAt: new Date() })
+        .where(eq(transactions.id, ccPay.id));
       paired++;
     }
   }

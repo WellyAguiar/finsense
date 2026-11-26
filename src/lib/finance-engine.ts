@@ -74,6 +74,8 @@ const CC_PAYMENT_PATTERNS = [
   "FATURA XP",
   "FATURA BTG",
   "PAGAMENTO RECEBIDO",
+  "INCLUSAO DE PAGAMENTO",
+  "PAGAMENTO ENT PARCELAMENTO FAT",
 ];
 
 const TRANSFER_PATTERNS = [
@@ -84,7 +86,31 @@ const TRANSFER_PATTERNS = [
   "RESGATE AUTOMATICO",
   "APLICACAO AUTOMATICA",
   "CONTA PROPRIA",
+  "APLICACAO RDB",
+  "RESGATE RDB",
+  "CDB C6",
+  "LIM.GARANT",
+  "LIM. GARANT",
+  "CAIXINHA",
+  "COFRINHO",
 ];
+
+/**
+ * Normaliza nomes longos de instituições retornados pelo Open Finance (ex: Nu Pagamentos S.A.).
+ */
+export function normalizeInstitutionName(raw: string): string {
+  const cleaned = raw.trim();
+  if (!cleaned) return "Instituição Conectada";
+  if (/nu\s+pagamentos|nubank/i.test(cleaned)) return "Nubank";
+  if (/^c6\s*bank/i.test(cleaned)) return "C6 Bank";
+  if (/^banco\s*inter\b|^inter\b/i.test(cleaned)) return "Banco Inter";
+  if (/ita[uú]/i.test(cleaned)) return "Itaú";
+  if (/bradesco/i.test(cleaned)) return "Bradesco";
+  if (/santander/i.test(cleaned)) return "Santander";
+  if (/btg/i.test(cleaned)) return "BTG Pactual";
+  if (/mercado\s*pago/i.test(cleaned)) return "Mercado Pago";
+  return cleaned;
+}
 
 /**
  * Classifica o tipo contábil da transação evitando dupla contagem de faturas e transferências.
@@ -95,13 +121,16 @@ export function detectTransactionKind(params: {
   description: string;
   pluggyType?: string | null;
 }): TransactionKind {
-  const upper = params.description.toUpperCase();
+  const upper = params.description
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
 
   if (CC_PAYMENT_PATTERNS.some((p) => upper.includes(p))) {
     return "CC_PAYMENT";
   }
 
-  if (TRANSFER_PATTERNS.some((p) => upper.includes(p))) {
+  if (params.accountType !== "CREDIT_CARD" && TRANSFER_PATTERNS.some((p) => upper.includes(p))) {
     return "TRANSFER";
   }
 

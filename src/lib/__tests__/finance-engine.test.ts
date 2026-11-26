@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   parseInstallmentInfo,
   detectTransactionKind,
+  normalizeInstitutionName,
   findPotentialDuplicates,
   applyCategorizationRules,
   computeBudgetPace,
@@ -103,6 +104,41 @@ describe("detectTransactionKind", () => {
         pluggyType: "CREDIT",
       })
     ).toBe("INCOME");
+  });
+
+  it("classifica RDB e CDB de limite garantido como TRANSFER e normaliza nomes de bancos", () => {
+    expect(
+      detectTransactionKind({
+        accountType: "CHECKING",
+        rawAmount: -536.42,
+        description: "Aplicação RDB",
+        pluggyType: "DEBIT",
+      })
+    ).toBe("TRANSFER");
+
+    expect(
+      detectTransactionKind({
+        accountType: "CHECKING",
+        rawAmount: 536.42,
+        description: "Resgate RDB",
+        pluggyType: "CREDIT",
+      })
+    ).toBe("TRANSFER");
+
+    expect(
+      detectTransactionKind({
+        accountType: "CHECKING",
+        rawAmount: -1314,
+        description: "CDB C6 LIM.GARANT.",
+        pluggyType: "DEBIT",
+      })
+    ).toBe("TRANSFER");
+
+    expect(normalizeInstitutionName("Nu Pagamentos S.A. - Instituição de Pagamento")).toBe(
+      "Nubank"
+    );
+    expect(normalizeInstitutionName("C6 BANK")).toBe("C6 Bank");
+    expect(normalizeInstitutionName("BANCO INTER")).toBe("Banco Inter");
   });
 });
 
