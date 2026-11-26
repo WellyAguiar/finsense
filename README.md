@@ -1,4 +1,16 @@
-# FinSense — Plataforma Pessoal de Finanças + IA
+<div align="center">
+  <img src="./docs/banner.svg" width="100%" alt="FinSense — Open Finance Brasil + Multimodal AI Engine" />
+  <br />
+  <br />
+  <img src="https://img.shields.io/badge/Next.js_15-A855F7?style=flat-square&labelColor=0D0818&logo=nextdotjs&logoColor=F8FAFC" alt="Next.js" />
+  <img src="https://img.shields.io/badge/TypeScript-A855F7?style=flat-square&labelColor=0D0818&logo=typescript&logoColor=F8FAFC" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Drizzle_ORM-A855F7?style=flat-square&labelColor=0D0818&logo=drizzle&logoColor=F8FAFC" alt="Drizzle" />
+  <img src="https://img.shields.io/badge/PostgreSQL-A855F7?style=flat-square&labelColor=0D0818&logo=postgresql&logoColor=F8FAFC" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Gemini_AI-C084FC?style=flat-square&labelColor=0D0818&logo=googlegemini&logoColor=F8FAFC" alt="Gemini" />
+  <img src="https://img.shields.io/badge/Vitest-8B5CF6?style=flat-square&labelColor=0D0818&logo=vitest&logoColor=F8FAFC" alt="Vitest" />
+</div>
+
+<br />
 
 Software web de uso pessoal projetado para rodar **gratuitamente na Vercel**, consolidando contas bancárias, entradas, saídas, cartões de crédito, orçamentos, assinaturas e metas com **Open Finance Brasil (Meu Pluggy)** e **Google Gemini API**.
 
