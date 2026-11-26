@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { isAllowedEmail } from "@/lib/auth-guard";
 import { isAuthConfigured } from "@/lib/env";
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/cron", "/api/health"];
+const PUBLIC_PATHS = ["/login", "/api/auth", "/api/cron", "/api/health", "/api/webhooks/pluggy"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
