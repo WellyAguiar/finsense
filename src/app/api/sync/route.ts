@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getDb, connections } from "@/db";
 import { requireUserSession } from "@/lib/session";
 import { unauthorizedResponse } from "@/lib/auth-guard";
-import { syncAllPluggyConnections, syncPluggyItem } from "@/lib/pluggy";
+import { extractErrorMessage, syncAllPluggyConnections, syncPluggyItem } from "@/lib/pluggy";
 import { isPluggyConfigured } from "@/lib/env";
 
 export const maxDuration = 60;
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, summary });
     } catch (err) {
       return NextResponse.json(
-        { error: err instanceof Error ? err.message : "Erro ao sincronizar conexão Pluggy" },
+        { error: extractErrorMessage(err) },
         { status: 500 }
       );
     }

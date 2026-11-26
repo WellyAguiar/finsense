@@ -16,15 +16,110 @@ import {
   parseInstallmentInfo,
 } from "@/lib/finance-engine";
 
-function getPluggyClient(): PluggyClient {
+interface PluggyV2Transaction {
+  id: string;
+  description?: string | null;
+  descriptionRaw?: string | null;
+  amount: number;
+  date: string;
+  type?: string | null;
+  category?: string | null;
+  merchant?: { name?: string | null; businessName?: string | null } | null;
+  creditCardMetadata?: {
+    installmentNumber?: number | null;
+    totalInstallments?: number | null;
+    billId?: string | null;
+  } | null;
+}
+
+interface PluggyV2Page {
+  results: PluggyV2Transaction[];
+  next?: string | null;
+}
+
+function getPluggyCredentials() {
   const clientId = process.env.PLUGGY_CLIENT_ID;
   const clientSecret = process.env.PLUGGY_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
     throw new Error(
-      "PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET não configurados. Cadastre suas chaves do Meu Pluggy no .env.local."
+      "PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET não configurados. Cadastre suas chaves do Pluggy no .env.local."
     );
   }
-  return new PluggyClient({ clientId, clientSecret });
+  return { clientId, clientSecret };
+}
+
+function getPluggyClient(): PluggyClient {
+  return new PluggyClient(getPluggyCredentials());
+}
+
+async function getPluggyApiKey(): Promise<string> {
+  const { clientId, clientSecret } = getPluggyCredentials();
+  const res = await fetch("https://api.pluggy.ai/auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientId, clientSecret }),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Falha na autenticação Pluggy (${res.status}): ${txt}`);
+  }
+  const data = (await res.json()) as { apiKey?: string };
+  if (!data.apiKey) throw new Error("Pluggy não retornou apiKey.");
+  return data.apiKey;
+}
+
+/**
+ * Busca transações pelo endpoint oficial /v2/transactions com paginação por cursor.
+ */
+async function fetchAccountTransactionsV2(
+  apiKey: string,
+  accountId: string,
+  fromDateStr: string
+): Promise<PluggyV2Transaction[]> {
+  const all: PluggyV2Transaction[] = [];
+  let nextUrl: string | null =
+    `https://api.pluggy.ai/v2/transactions?accountId=${encodeURIComponent(accountId)}`;
+
+  let safetyPages = 0;
+  while (nextUrl && safetyPages < 15) {
+    safetyPages++;
+    const res = await fetch(nextUrl, {
+      headers: { "X-API-KEY": apiKey },
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Erro Pluggy /v2/transactions (${res.status}): ${txt}`);
+    }
+    const page = (await res.json()) as PluggyV2Page;
+    if (Array.isArray(page.results)) {
+      all.push(...page.results.filter((tx) => toISODate(tx.date) >= fromDateStr));
+    }
+
+    if (page.next) {
+      nextUrl = page.next.startsWith("http")
+        ? page.next
+        : `https://api.pluggy.ai/v2/transactions?accountId=${encodeURIComponent(accountId)}&cursor=${encodeURIComponent(page.next)}`;
+    } else {
+      nextUrl = null;
+    }
+  }
+
+  return all;
+}
+
+export function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (err && typeof err === "object") {
+    const obj = err as Record<string, unknown>;
+    if (typeof obj.message === "string") return obj.message;
+    if (typeof obj.codeDescription === "string") return obj.codeDescription;
+    try {
+      return JSON.stringify(obj).slice(0, 240);
+    } catch {
+      return "Erro ao comunicar com o Pluggy";
+    }
+  }
+  return "Erro desconhecido ao sincronizar";
 }
 
 export interface SyncItemSummary {
@@ -49,20 +144,40 @@ function toISODate(dateValue: Date | string): string {
   return String(dateValue).slice(0, 10);
 }
 
+function inferInstitutionName(
+  connectorName: string | undefined | null,
+  pluggyAccounts: Array<{ name?: string | null; type?: string | null; marketingName?: string | null }>
+): string {
+  const base = connectorName?.trim() || "Instituição Conectada";
+  if (base.toLowerCase() !== "meupluggy" && base.toLowerCase() !== "meu pluggy") {
+    return base;
+  }
+  // Quando vem via MeuPluggy, extrai o nome real do banco a partir da conta bancária
+  const bankAcc = pluggyAccounts.find((a) => a.type === "BANK" && a.name?.trim());
+  if (bankAcc?.name?.trim()) return bankAcc.name.trim();
+  const anyAcc = pluggyAccounts.find((a) => (a.marketingName || a.name)?.trim());
+  if (anyAcc) return (anyAcc.marketingName || anyAcc.name || base).trim();
+  return base;
+}
+
 /**
- * Sincroniza uma conexão (Item) do Meu Pluggy de forma idempotente:
- * contas, faturas de cartão, transações e pareamento automático de transferências internas.
+ * Sincroniza uma conexão (Item) do Pluggy de forma idempotente e rápida:
+ * contas, faturas de cartão, transações (/v2/transactions) e pareamento de transferências próprias.
  */
 export async function syncPluggyItem(
   pluggyItemId: string,
   daysBack = 90
 ): Promise<SyncItemSummary> {
   const client = getPluggyClient();
+  const apiKey = await getPluggyApiKey();
   const db = getDb();
   await ensureBaseSeed();
 
   const item = await client.fetchItem(pluggyItemId);
-  const institutionName = item.connector?.name ?? "Instituição Conectada";
+  const pluggyAccountsRes = await client.fetchAccounts(pluggyItemId);
+  const pluggyAccounts = pluggyAccountsRes.results ?? [];
+
+  const institutionName = inferInstitutionName(item.connector?.name, pluggyAccounts);
   const institutionLogoUrl = item.connector?.imageUrl ?? null;
 
   const [conn] = await db
@@ -88,7 +203,6 @@ export async function syncPluggyItem(
     })
     .returning();
 
-  const pluggyAccountsRes = await client.fetchAccounts(pluggyItemId);
   const rules = await db.select().from(categorizationRules);
 
   const fromDate = new Date();
@@ -99,7 +213,7 @@ export async function syncPluggyItem(
   let transactionsInserted = 0;
   let transactionsUpdated = 0;
 
-  for (const pAcc of pluggyAccountsRes.results) {
+  for (const pAcc of pluggyAccounts) {
     const accountType = mapPluggyAccountType(pAcc.type, pAcc.subtype);
     const balanceCents = Math.round((pAcc.balance ?? 0) * 100);
     const creditLimitCents =
@@ -118,12 +232,18 @@ export async function syncPluggyItem(
       ? new Date(pAcc.creditData.balanceDueDate).getDate()
       : null;
 
+    const rawAccName = pAcc.name?.trim();
+    const displayAccountName =
+      accountType === "CREDIT_CARD" && (!rawAccName || rawAccName.toUpperCase() === "BANDEIRADO")
+        ? `Cartão ${institutionName}`
+        : rawAccName || `${institutionName} ${accountType === "CREDIT_CARD" ? "Cartão" : "Conta"}`;
+
     const [localAccount] = await db
       .insert(accounts)
       .values({
         connectionId: conn.id,
         pluggyAccountId: pAcc.id,
-        name: pAcc.name || `${institutionName} ${accountType === "CREDIT_CARD" ? "Cartão" : "Conta"}`,
+        name: displayAccountName,
         institutionName,
         type: accountType,
         subtype: pAcc.subtype ?? null,
@@ -138,7 +258,7 @@ export async function syncPluggyItem(
         target: accounts.pluggyAccountId,
         set: {
           connectionId: conn.id,
-          name: pAcc.name || `${institutionName} ${accountType === "CREDIT_CARD" ? "Cartão" : "Conta"}`,
+          name: displayAccountName,
           institutionName,
           balanceCents,
           creditLimitCents,
@@ -195,102 +315,111 @@ export async function syncPluggyItem(
           billIdMap.set(pBill.id, localBill.id);
         }
       } catch {
-        // Nem todo conector retorna endpoint de bills — seguimos normalmente com as transações
+        // Nem todo conector retorna endpoint de bills — seguimos normalmente
       }
     }
 
-    // Busca paginada de transações
-    let page = 1;
-    let totalPages = 1;
-    do {
-      const txRes = await client.fetchTransactions(pAcc.id, {
-        from: fromStr,
-        pageSize: 100,
-        page,
-      });
-      totalPages = txRes.totalPages ?? 1;
+    // Busca transações pelo endpoint /v2/transactions (cursor)
+    const pTransactions = await fetchAccountTransactionsV2(apiKey, pAcc.id, fromStr);
 
-      for (const pTx of txRes.results) {
-        const rawDescription = pTx.descriptionRaw || pTx.description || "Transação";
-        const occurredAt = toISODate(pTx.date);
-        const amountCents = Math.round(Math.abs(pTx.amount) * 100);
+    // Pré-carrega IDs já existentes nesta conta para evitar N+1 queries
+    const existingRows = await db
+      .select({ id: transactions.id, externalId: transactions.externalId })
+      .from(transactions)
+      .where(eq(transactions.accountId, localAccount.id));
 
-        const matchedRule = applyCategorizationRules(rawDescription, rules);
-        const kind =
-          matchedRule?.kindOverride ??
-          detectTransactionKind({
-            accountType,
-            rawAmount: pTx.amount,
-            description: rawDescription,
-            pluggyType: pTx.type,
-          });
+    const existingExternalIds = new Set(
+      existingRows.map((r) => r.externalId).filter((id): id is string => Boolean(id))
+    );
 
-        const installment = parseInstallmentInfo(rawDescription);
-        const pluggyInstNumber = pTx.creditCardMetadata?.installmentNumber ?? installment?.installmentNumber ?? null;
-        const pluggyInstTotal = pTx.creditCardMetadata?.totalInstallments ?? installment?.installmentTotal ?? null;
+    const toInsert: Array<typeof transactions.$inferInsert> = [];
 
-        const cleanMerchant =
-          matchedRule?.cleanMerchant ??
-          pTx.merchant?.name ??
-          pTx.description?.trim() ??
-          rawDescription;
+    for (const pTx of pTransactions) {
+      if (existingExternalIds.has(pTx.id)) {
+        transactionsUpdated++;
+        continue;
+      }
 
-        const ccMeta = pTx.creditCardMetadata as
-          | (typeof pTx.creditCardMetadata & { billId?: string })
-          | null
-          | undefined;
-        const billExternalId = ccMeta?.billId;
-        const localBillId = billExternalId ? billIdMap.get(billExternalId) ?? null : null;
+      const rawDescription = (pTx.descriptionRaw || pTx.description || "Transação").trim();
+      const occurredAt = toISODate(pTx.date);
+      const amountCents = Math.round(Math.abs(pTx.amount) * 100);
+      if (amountCents === 0) continue;
 
-        const fingerprint = buildTransactionFingerprint({
-          accountId: localAccount.id,
-          amountCents,
-          occurredAt,
-          rawDescription,
+      const matchedRule = applyCategorizationRules(rawDescription, rules);
+      const pluggyCatLower = (pTx.category ?? "").toLowerCase();
+
+      let kind =
+        matchedRule?.kindOverride ??
+        detectTransactionKind({
+          accountType,
+          rawAmount: pTx.amount,
+          description: rawDescription,
+          pluggyType: pTx.type,
         });
 
-        const existing = await db
-          .select({ id: transactions.id })
-          .from(transactions)
-          .where(eq(transactions.externalId, pTx.id))
-          .limit(1);
-
-        if (existing.length > 0) {
-          await db
-            .update(transactions)
-            .set({
-              amountCents,
-              occurredAt,
-              billId: localBillId,
-              installmentNumber: pluggyInstNumber,
-              installmentTotal: pluggyInstTotal,
-              updatedAt: new Date(),
-            })
-            .where(eq(transactions.id, existing[0].id));
-          transactionsUpdated++;
-        } else {
-          await db.insert(transactions).values({
-            accountId: localAccount.id,
-            billId: localBillId,
-            categoryId: matchedRule?.categoryId ?? null,
-            externalId: pTx.id,
-            fingerprint,
-            source: "PLUGGY",
-            kind,
-            amountCents,
-            occurredAt,
-            rawDescription,
-            cleanMerchant,
-            installmentNumber: pluggyInstNumber,
-            installmentTotal: pluggyInstTotal,
-            reviewed: Boolean(matchedRule),
-          });
-          transactionsInserted++;
+      if (!matchedRule?.kindOverride) {
+        if (pluggyCatLower.includes("credit card payment")) {
+          kind = "CC_PAYMENT";
+        } else if (pluggyCatLower.includes("same person transfer")) {
+          kind = "TRANSFER";
         }
       }
 
-      page++;
-    } while (page <= totalPages && page <= 10);
+      const installment = parseInstallmentInfo(rawDescription);
+      const pluggyInstNumber =
+        pTx.creditCardMetadata?.installmentNumber ?? installment?.installmentNumber ?? null;
+      const pluggyInstTotal =
+        pTx.creditCardMetadata?.totalInstallments ?? installment?.installmentTotal ?? null;
+
+      const cleanMerchant =
+        matchedRule?.cleanMerchant ??
+        pTx.merchant?.name?.trim() ??
+        pTx.merchant?.businessName?.trim() ??
+        pTx.description?.trim() ??
+        rawDescription;
+
+      const billExternalId = pTx.creditCardMetadata?.billId;
+      const localBillId = billExternalId ? (billIdMap.get(billExternalId) ?? null) : null;
+
+      const fingerprint = buildTransactionFingerprint({
+        accountId: localAccount.id,
+        amountCents,
+        occurredAt,
+        rawDescription,
+      });
+
+      toInsert.push({
+        accountId: localAccount.id,
+        billId: localBillId,
+        categoryId:
+          kind === "TRANSFER" || kind === "CC_PAYMENT"
+            ? null
+            : (matchedRule?.categoryId ?? null),
+        externalId: pTx.id,
+        fingerprint,
+        source: "PLUGGY",
+        kind,
+        amountCents,
+        occurredAt,
+        rawDescription,
+        cleanMerchant,
+        installmentNumber: pluggyInstNumber,
+        installmentTotal: pluggyInstTotal,
+        reviewed: Boolean(matchedRule || kind === "TRANSFER" || kind === "CC_PAYMENT"),
+      });
+    }
+
+    // Inserção em lotes de 100 (super rápido no Neon serverless)
+    const CHUNK = 100;
+    for (let i = 0; i < toInsert.length; i += CHUNK) {
+      const slice = toInsert.slice(i, i + CHUNK);
+      const inserted = await db
+        .insert(transactions)
+        .values(slice)
+        .onConflictDoNothing({ target: transactions.externalId })
+        .returning({ id: transactions.id });
+      transactionsInserted += inserted.length;
+    }
   }
 
   const transfersPaired = await pairInternalTransfers();
@@ -365,7 +494,7 @@ export async function pairInternalTransfers(): Promise<number> {
 /**
  * Sincroniza todas as conexões cadastradas no banco + eventuais PLUGGY_ITEM_IDS do ambiente.
  */
-export async function syncAllPluggyConnections(daysBack = 45): Promise<{
+export async function syncAllPluggyConnections(daysBack = 90): Promise<{
   synced: SyncItemSummary[];
   errors: Array<{ pluggyItemId: string; error: string }>;
 }> {
@@ -388,7 +517,7 @@ export async function syncAllPluggyConnections(daysBack = 45): Promise<{
       const summary = await syncPluggyItem(itemId, daysBack);
       synced.push(summary);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro desconhecido ao sincronizar";
+      const message = extractErrorMessage(err);
       errors.push({ pluggyItemId: itemId, error: message });
       await db
         .update(connections)
@@ -397,7 +526,6 @@ export async function syncAllPluggyConnections(daysBack = 45): Promise<{
     }
   }
 
-  // Opcional: fecha faturas antigas já vencidas
   const todayStr = new Date().toISOString().slice(0, 10);
   await db
     .update(creditCardBills)
