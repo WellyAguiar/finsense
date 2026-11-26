@@ -1,4 +1,6 @@
-import "dotenv/config";
+import { config } from "dotenv";
+config({ path: ".env.local" });
+config();
 import { eq } from "drizzle-orm";
 import { getDb, categories, categorizationRules } from "./index";
 import { DEFAULT_CATEGORIES, DEFAULT_RULES } from "./seed-data";
