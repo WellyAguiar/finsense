@@ -1,6 +1,6 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, inArray, isNull, ne, sql } from "drizzle-orm";
 import {
   getDb,
   transactions,
