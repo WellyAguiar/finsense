@@ -14,6 +14,12 @@
 
 Software web de uso pessoal projetado para rodar **gratuitamente na Vercel**, consolidando contas bancárias, entradas, saídas, cartões de crédito, orçamentos, assinaturas e metas com **Open Finance Brasil (Meu Pluggy)** e **Google Gemini API**.
 
+<br />
+
+<div align="center">
+  <img src="./docs/preview.svg" width="100%" alt="FinSense — Visão Geral da Interface e Chat SQL Gemini" />
+</div>
+
 ## Principais Recursos
 
 - **Open Finance Brasil Gratuito (Meu Pluggy):** sincronização automática de até 5 instituições no mesmo CPF (contas, saldos, cartões, faturas e transações), sob demanda ou via Cron diário da Vercel.

@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" width="100%" height="100%">
+  <defs>
+    <linearGradient id="canvasBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090612" />
+      <stop offset="100%" stop-color="#110A22" />
+    </linearGradient>
+    <linearGradient id="cardBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#160F29" />
+      <stop offset="100%" stop-color="#0E091B" />
+    </linearGradient>
+    <linearGradient id="barGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#C084FC" />
+      <stop offset="100%" stop-color="#7E22CE" />
+    </linearGradient>
+    <style>
+      .mono { font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace; }
+      .sans { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
+    </style>
+  </defs>
+
+  <!-- App Window Frame -->
+  <rect width="1200" height="620" rx="14" fill="url(#canvasBg)" stroke="#4C1D95" stroke-width="1.5" />
+  <rect x="0" y="0" width="1200" height="44" rx="14" fill="#120B24" />
+  <rect x="0" y="30" width="1200" height="14" fill="#120B24" />
+  <line x1="0" y1="44" x2="1200" y2="44" stroke="#3B0764" stroke-width="1" />
+  <circle cx="24" cy="22" r="5.5" fill="#EF4444" opacity="0.85" />
+  <circle cx="42" cy="22" r="5.5" fill="#F59E0B" opacity="0.85" />
+  <circle cx="60" cy="22" r="5.5" fill="#10B981" opacity="0.85" />
+  <text x="600" y="27" text-anchor="middle" class="mono" font-size="12" fill="#A78BFA">finsense.app // Painel Consolidado + Chat IA SQL</text>
+
+  <!-- Left Sidebar -->
+  <rect x="0" y="45" width="220" height="574" fill="#0C0718" />
+  <line x1="220" y1="45" x2="220" y2="620" stroke="#2E1065" stroke-width="1" />
+  <text x="28" y="86" class="mono" font-size="18" font-weight="800" fill="#E9D5FF">FinSense</text>
+  <rect x="16" y="108" width="188" height="36" rx="8" fill="#581C87" fill-opacity="0.45" stroke="#A855F7" stroke-width="1" />
+  <text x="34" y="131" class="sans" font-size="13" font-weight="600" fill="#F3E8FF">Visão Geral</text>
+  <text x="34" y="172" class="sans" font-size="13" fill="#94A3B8">Transações</text>
+  <text x="34" y="208" class="sans" font-size="13" fill="#94A3B8">Cartões &amp; Faturas</text>
+  <text x="34" y="244" class="sans" font-size="13" fill="#94A3B8">Leitor PDF / Pix (IA)</text>
+  <text x="34" y="280" class="sans" font-size="13" fill="#C084FC">Chat SQL Gemini</text>
+  <text x="34" y="316" class="sans" font-size="13" fill="#94A3B8">Planejamento &amp; Metas</text>
+
+  <!-- Open Finance Badge in Sidebar -->
+  <rect x="16" y="546" width="188" height="52" rx="8" fill="#130C26" stroke="#4C1D95" stroke-width="1" />
+  <circle cx="34" cy="566" r="4.5" fill="#34D399" />
+  <text x="46" y="570" class="mono" font-size="11" font-weight="600" fill="#E2E8F0">OPEN FINANCE SYNC</text>
+  <text x="30" y="588" class="mono" font-size="10" fill="#A78BFA">4 bancos conectados • Pluggy</text>
+
+  <!-- KPI Cards Row -->
+  <g transform="translate(246, 68)">
+    <rect width="292" height="108" rx="10" fill="url(#cardBg)" stroke="#3B0764" stroke-width="1" />
+    <text x="20" y="30" class="sans" font-size="12" fill="#A78BFA">SALDO LÍQUIDO CONSOLIDADO</text>
+    <text x="20" y="68" class="mono" font-size="26" font-weight="700" fill="#F8FAFC">R$ 28.450,90</text>
+    <text x="20" y="92" class="mono" font-size="11" fill="#34D399">+12,4% vs mês anterior • Sem dupla contagem</text>
+  </g>
+
+  <g transform="translate(556, 68)">
+    <rect width="292" height="108" rx="10" fill="url(#cardBg)" stroke="#3B0764" stroke-width="1" />
+    <text x="20" y="30" class="sans" font-size="12" fill="#A78BFA">ENTRADAS X SAÍDAS (NOV)</text>
+    <text x="20" y="68" class="mono" font-size="24" font-weight="700" fill="#E9D5FF">R$ 14.200 / R$ 6.830</text>
+    <text x="20" y="92" class="mono" font-size="11" fill="#C084FC">Taxa de poupança: 51,9% • Centavos bigint</text>
+  </g>
+
+  <g transform="translate(866, 68)">
+    <rect width="308" height="108" rx="10" fill="url(#cardBg)" stroke="#3B0764" stroke-width="1" />
+    <text x="20" y="30" class="sans" font-size="12" fill="#A78BFA">FATURAS PROJETADAS</text>
+    <text x="20" y="68" class="mono" font-size="26" font-weight="700" fill="#F8FAFC">R$ 3.190,40</text>
+    <text x="20" y="92" class="mono" font-size="11" fill="#F472B6">CC_PAYMENT pareado automaticamente</text>
+  </g>
+
+  <!-- Cashflow Chart Card -->
+  <g transform="translate(246, 196)">
+    <rect width="560" height="398" rx="10" fill="url(#cardBg)" stroke="#3B0764" stroke-width="1" />
+    <text x="24" y="34" class="sans" font-size="14" font-weight="600" fill="#F8FAFC">Fluxo de Caixa Mensal &amp; Categorização Híbrida</text>
+    <text x="24" y="54" class="mono" font-size="11" fill="#94A3B8">Regras determinísticas locais + lote Gemini 2.5 Flash</text>
+
+    <!-- Chart Grid -->
+    <line x1="40" y1="100" x2="530" y2="100" stroke="#2E1065" stroke-dasharray="4 4" />
+    <line x1="40" y1="165" x2="530" y2="165" stroke="#2E1065" stroke-dasharray="4 4" />
+    <line x1="40" y1="230" x2="530" y2="230" stroke="#2E1065" stroke-dasharray="4 4" />
+    <line x1="40" y1="295" x2="530" y2="295" stroke="#4C1D95" />
+
+    <!-- Bars -->
+    <rect x="75" y="145" width="38" height="150" rx="5" fill="url(#barGrad)" />
+    <rect x="165" y="130" width="38" height="165" rx="5" fill="url(#barGrad)" />
+    <rect x="255" y="155" width="38" height="140" rx="5" fill="url(#barGrad)" />
+    <rect x="345" y="115" width="38" height="180" rx="5" fill="url(#barGrad)" />
+    <rect x="435" y="98" width="38" height="197" rx="5" fill="#E879F9" />
+
+    <text x="94" y="318" text-anchor="middle" class="mono" font-size="11" fill="#A78BFA">JUL</text>
+    <text x="184" y="318" text-anchor="middle" class="mono" font-size="11" fill="#A78BFA">AGO</text>
+    <text x="274" y="318" text-anchor="middle" class="mono" font-size="11" fill="#A78BFA">SET</text>
+    <text x="364" y="318" text-anchor="middle" class="mono" font-size="11" fill="#A78BFA">OUT</text>
+    <text x="454" y="318" text-anchor="middle" class="mono" font-size="11" fill="#F3E8FF">NOV</text>
+
+    <!-- Bottom Deduction Alert -->
+    <rect x="24" y="340" width="512" height="38" rx="7" fill="#1A1033" stroke="#6B21A8" stroke-width="1" />
+    <text x="40" y="364" class="mono" font-size="11" fill="#D8B4FE">✓ 3 transferências entre contas próprias (TRANSFER) filtradas do cálculo</text>
+  </g>
+
+  <!-- Right Panel: Gemini SQL Tool-Calling Chat -->
+  <g transform="translate(824, 196)">
+    <rect width="350" height="398" rx="10" fill="url(#cardBg)" stroke="#581C87" stroke-width="1" />
+    <text x="20" y="34" class="mono" font-size="13" font-weight="700" fill="#E879F9">// GEMINI SQL ASSISTANT</text>
+    <line x1="0" y1="48" x2="350" y2="48" stroke="#3B0764" />
+
+    <rect x="44" y="66" width="286" height="44" rx="8" fill="#4C1D95" fill-opacity="0.55" />
+    <text x="58" y="85" class="sans" font-size="11.5" fill="#F8FAFC">Quanto gastei com assinaturas e</text>
+    <text x="58" y="101" class="sans" font-size="11.5" fill="#F8FAFC">nuvem nos últimos 3 meses?</text>
+
+    <rect x="20" y="126" width="310" height="32" rx="6" fill="#0B0714" stroke="#6B21A8" stroke-width="1" />
+    <text x="32" y="146" class="mono" font-size="10.5" fill="#C084FC">⚡ tool: queryReadOnlySQL (PostgreSQL)</text>
+
+    <rect x="20" y="172" width="310" height="162" rx="8" fill="#140C29" stroke="#3B0764" stroke-width="1" />
+    <text x="34" y="196" class="sans" font-size="11.5" fill="#E2E8F0">Total de R$ 642,70 no trimestre:</text>
+    <rect x="34" y="214" width="210" height="12" rx="3" fill="#A855F7" />
+    <text x="254" y="224" class="mono" font-size="10" fill="#E9D5FF">R$ 230</text>
+    <rect x="34" y="238" width="185" height="12" rx="3" fill="#8B5CF6" />
+    <text x="229" y="248" class="mono" font-size="10" fill="#E9D5FF">R$ 198</text>
+    <rect x="34" y="262" width="195" height="12" rx="3" fill="#C084FC" />
+    <text x="239" y="272" class="mono" font-size="10" fill="#E9D5FF">R$ 214</text>
+    <text x="34" y="308" class="mono" font-size="10" fill="#F472B6">Alerta: reajuste de +8% detectado em Nov.</text>
+
+    <rect x="20" y="350" width="310" height="32" rx="6" fill="#0B0714" stroke="#4C1D95" stroke-width="1" />
+    <text x="34" y="370" class="sans" font-size="11" fill="#64748B">Pergunte sobre seus dados reais...</text>
+  </g>
+</svg>
