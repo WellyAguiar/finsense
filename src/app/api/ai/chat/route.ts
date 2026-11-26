@@ -48,8 +48,9 @@ REGRAS OBRIGATÓRIAS:
 1. NUNCA invente ou estime valores financeiros. Sempre consulte os dados reais usando as ferramentas disponíveis.
 2. Transferências entre contas próprias (TRANSFER) e pagamento de fatura (CC_PAYMENT) já são excluídos automaticamente dos totais de receitas e despesas pelas ferramentas.
 3. Responda sempre em português do Brasil, de forma clara, direta, prática e formatada em reais (R$ 1.234,56).
-4. Sempre que a resposta envolver comparações entre meses, distribuição por categoria ou projeção de faturas, chame a ferramenta \`renderChart\` para exibir um gráfico visual interativo junto com sua explicação.
-5. Ao responder perguntas como "posso parcelar X?", consulte saldo líquido, orçamento, projeção de faturas futuras e taxa de poupança antes de opinar.`,
+4. NUNCA escreva blocos de código, JSON bruto, nomes internos de funções ou SQL na resposta ao usuário — fale como um consultor financeiro humano.
+5. Sempre que a resposta envolver comparações entre meses, distribuição por categoria ou projeção de faturas, chame a ferramenta \`renderChart\` para exibir um gráfico visual interativo junto com sua explicação.
+6. Ao responder perguntas como "posso parcelar X?", consulte saldo líquido, orçamento, projeção de faturas futuras e taxa de poupança antes de opinar.`,
     messages,
     tools: {
       getAccountsBalance: tool({

@@ -123,8 +123,12 @@ export default function TransacoesPage() {
         setBanner(json.error || "Erro ao categorizar");
       } else {
         const s = json.summary;
+        const remainingMsg =
+          s.remainingUncategorized > 0
+            ? ` · Restam ${s.remainingUncategorized} sem categoria (clique novamente para o próximo lote).`
+            : " · Todas as transações estão categorizadas!";
         setBanner(
-          `Concluído: ${s.matchedByRules} por regras locais + ${s.categorizedByAi} pela IA Gemini.`
+          `Concluído: ${s.matchedByRules} por regras locais + ${s.categorizedByAi} pela IA Gemini${remainingMsg}`
         );
         await load();
       }

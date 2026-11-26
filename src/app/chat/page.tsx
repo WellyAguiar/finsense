@@ -4,6 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { Sparkles, Send, Database, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { ChatInlineChart, type InlineChartSpec } from "@/components/ChatInlineChart";
+import { MarkdownText } from "@/components/MarkdownText";
 import { cn } from "@/lib/format";
 
 const QUICK_PROMPTS = [
@@ -79,7 +80,9 @@ export default function ChatPage() {
                   {m.parts ? (
                     m.parts.map((part, idx) => {
                       if (part.type === "text") {
-                        return (
+                        return m.role === "assistant" ? (
+                          <MarkdownText key={idx} content={part.text} />
+                        ) : (
                           <div key={idx} className="whitespace-pre-wrap">
                             {part.text}
                           </div>

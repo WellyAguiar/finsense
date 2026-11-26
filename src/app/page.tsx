@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { CashflowChart, CategoryBreakdownChart } from "@/components/DashboardCharts";
+import { MarkdownText } from "@/components/MarkdownText";
 import {
   cn,
   formatBRL,
@@ -308,9 +309,9 @@ export default function DashboardPage() {
                         )}
                         <span>{ins.title}</span>
                       </div>
-                      <p className="whitespace-pre-line text-xs leading-relaxed text-slate-200/90">
-                        {ins.summaryMd.replace(/\*\*/g, "")}
-                      </p>
+                      <div className="text-xs leading-relaxed text-slate-200/90">
+                        <MarkdownText content={ins.summaryMd} />
+                      </div>
                     </div>
                   ))}
                 </div>
