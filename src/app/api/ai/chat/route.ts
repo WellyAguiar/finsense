@@ -289,5 +289,8 @@ REGRAS OBRIGATÓRIAS:
     },
   });
 
-  return result.toDataStreamResponse();
+  return result.toDataStreamResponse({
+    getErrorMessage: (err) =>
+      err instanceof Error ? err.message : "Erro ao processar resposta da IA.",
+  });
 }
