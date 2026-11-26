@@ -63,8 +63,8 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      {/* Sidebar Desktop */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-800/80 bg-slate-900/60 lg:flex">
+      {/* Sidebar Desktop/Tablet */}
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-800/80 bg-slate-900/60 md:flex lg:w-64">
         <div className="flex items-center gap-3 border-b border-slate-800/80 px-5 py-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30">
             <Wallet className="h-5 w-5" />
@@ -124,21 +124,35 @@ export function AppShell({
       </aside>
 
       {/* Main content */}
-      <div className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
+      <div className="flex min-w-0 flex-1 flex-col pb-20 md:pb-0">
         {/* Header Mobile */}
-        <header className="flex items-center justify-between border-b border-slate-800/80 bg-slate-900/70 px-4 py-3 lg:hidden">
-          <div className="flex items-center gap-2">
+        <header className="flex items-center justify-between border-b border-slate-800/80 bg-slate-900/70 px-4 py-3 md:hidden">
+          <Link href="/" className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-emerald-400" />
             <span className="font-semibold text-white">FinSense</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/configuracoes"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium",
+                pathname.startsWith("/configuracoes")
+                  ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                  : "border-slate-700 bg-slate-800/80 text-slate-200"
+              )}
+            >
+              <Settings className="h-3.5 w-3.5" />
+              Configurações
+            </Link>
+            <button
+              onClick={handleQuickSync}
+              disabled={syncing}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
+              Sync
+            </button>
           </div>
-          <button
-            onClick={handleQuickSync}
-            disabled={syncing}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white"
-          >
-            <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
-            Sync
-          </button>
         </header>
 
         <main className="mx-auto w-full max-w-7xl flex-1 p-4 sm:p-6 lg:p-8">
@@ -147,8 +161,8 @@ export function AppShell({
       </div>
 
       {/* Bottom Nav Mobile */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-slate-800 bg-slate-900/95 px-2 py-2 backdrop-blur lg:hidden">
-        {NAV_ITEMS.slice(0, 6).map((item) => {
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-slate-800 bg-slate-900/95 px-1 py-2 backdrop-blur md:hidden">
+        {NAV_ITEMS.map((item) => {
           const active =
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const Icon = item.icon;
@@ -157,12 +171,14 @@ export function AppShell({
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-1 rounded-lg px-2 py-1 text-[10px]",
+                "flex flex-col items-center gap-1 rounded-lg px-1.5 py-1 text-[10px]",
                 active ? "text-emerald-400" : "text-slate-400"
               )}
             >
               <Icon className="h-4 w-4" />
-              <span className="max-w-[54px] truncate">{item.label.split(" ")[0]}</span>
+              <span className="max-w-[52px] truncate">
+                {item.href === "/configuracoes" ? "Config" : item.label.split(" ")[0]}
+              </span>
             </Link>
           );
         })}

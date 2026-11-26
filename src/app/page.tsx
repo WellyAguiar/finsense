@@ -232,6 +232,21 @@ export default function DashboardPage() {
               />
             </div>
 
+            {/* Banner de conexão Open Finance quando ainda não há bancos Pluggy */}
+            {data.connectionsCount === 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+                <span>
+                  Nenhum banco real conectado ainda — conecte suas contas via Open Finance (Pluggy) ou limpe os dados demo em Configurações.
+                </span>
+                <Link
+                  href="/configuracoes"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
+                >
+                  Conectar Bancos <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            )}
+
             {/* Banner de transações pendentes */}
             {data.pendingReviewCount > 0 && (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
