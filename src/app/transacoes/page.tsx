@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Search,
   Sparkles,
@@ -64,6 +64,7 @@ export default function TransacoesPage() {
   const [onlyUnreviewed, setOnlyUnreviewed] = useState(false);
 
   const [categorizing, setCategorizing] = useState(false);
+  const stopCategorizeRef = useRef(false);
   const [banner, setBanner] = useState<string | null>(null);
 
   const [showNew, setShowNew] = useState(false);
@@ -114,24 +115,52 @@ export default function TransacoesPage() {
   }, [load]);
 
   async function handleRunAiCategorization() {
+    if (categorizing) {
+      stopCategorizeRef.current = true;
+      return;
+    }
+
     setCategorizing(true);
-    setBanner(null);
+    stopCategorizeRef.current = false;
+    setBanner("Agrupando estabelecimentos iguais e categorizando com Gemini...");
+
+    let totalRules = 0;
+    let totalAi = 0;
+    let rounds = 0;
+
     try {
-      const res = await fetch("/api/ai/categorize", { method: "POST" });
-      const json = await res.json();
-      if (!res.ok) {
-        setBanner(json.error || "Erro ao categorizar");
-      } else {
+      while (!stopCategorizeRef.current && rounds < 25) {
+        rounds++;
+        const res = await fetch("/api/ai/categorize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ limit: 30 }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          setBanner(json.error || "Erro ao categorizar");
+          break;
+        }
+
         const s = json.summary;
-        const remainingMsg =
-          s.remainingUncategorized > 0
-            ? ` · Restam ${s.remainingUncategorized} sem categoria (clique novamente para o próximo lote).`
-            : " · Todas as transações estão categorizadas!";
+        totalRules += s.matchedByRules ?? 0;
+        totalAi += s.categorizedByAi ?? 0;
+        const remaining = s.remainingUncategorized ?? 0;
+
+        if (remaining === 0 || (s.matchedByRules === 0 && s.categorizedByAi === 0)) {
+          setBanner(
+            `Concluído! ${totalRules} por regras locais + ${totalAi} pela IA Gemini${
+              remaining > 0 ? ` · Restam ${remaining} pendentes.` : " · Todas as transações estão categorizadas!"
+            }`
+          );
+          break;
+        }
+
         setBanner(
-          `Concluído: ${s.matchedByRules} por regras locais + ${s.categorizedByAi} pela IA Gemini${remainingMsg}`
+          `Categorizando em lotes... ${totalRules + totalAi} concluídas · Restam ${remaining} (clique novamente no botão para parar)`
         );
-        await load();
       }
+      await load();
     } finally {
       setCategorizing(false);
     }
@@ -221,15 +250,14 @@ export default function TransacoesPage() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleRunAiCategorization}
-              disabled={categorizing}
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-indigo-500"
             >
               {categorizing ? (
                 <RefreshCw className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <Sparkles className="h-3.5 w-3.5" />
               )}
-              Categorizar Pendentes com IA
+              {categorizing ? "Parar Categorização" : "Categorizar Todas com IA"}
             </button>
             <button
               onClick={() => setShowNew((v) => !v)}
