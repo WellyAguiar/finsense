@@ -20,7 +20,7 @@ export function isPluggyConfigured(): boolean {
 }
 
 export function getGeminiModelName(): string {
-  return process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  return process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
 }
 
 export function getEnvStatus() {

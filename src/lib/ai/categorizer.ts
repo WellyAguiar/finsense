@@ -39,7 +39,7 @@ export interface CategorizationSummary {
  * 2) Envia apenas transações pendentes sem match em lotes para o Gemini.
  */
 export async function categorizePendingTransactions(
-  limit = 40
+  limit = 20
 ): Promise<CategorizationSummary> {
   const db = getDb();
 

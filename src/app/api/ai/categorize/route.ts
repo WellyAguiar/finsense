@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
   await ensureBaseSeed();
   const body = await req.json().catch(() => ({}));
-  const limit = Math.min(Number(body?.limit || 40), 100);
+  const limit = Math.min(Number(body?.limit || 20), 40);
 
   try {
     const summary = await categorizePendingTransactions(limit);
